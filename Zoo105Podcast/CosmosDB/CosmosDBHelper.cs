@@ -46,5 +46,11 @@ namespace Zoo105Podcast.CosmosDB
 			Uri documentCollectionUri = UriFactory.CreateDocumentCollectionUri(dbName, collectionName);
 			await cosmosDBClient.CreateDocumentAsync(documentCollectionUri, episode);
 		}
+
+		public static async Task UpdateExistingEpisodeAsync(DocumentClient cosmosDBClient, PodcastEpisode episode)
+		{
+			Uri documentUri = UriFactory.CreateDocumentUri(dbName, collectionName, episode.Id);
+			await cosmosDBClient.ReplaceDocumentAsync(documentUri, episode);
+		}
 	}
 }
