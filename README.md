@@ -10,6 +10,7 @@ I have written the following blog posts to show parts of this project:
 * [Zoo 105 Podcast: introduction and Azure Function setup](https://curia.me/zoo-105-podcast-introduction-and-azure-function-setup)
 * [Zoo 105 Podcast: adding CosmosDB](https://curia.me/zoo-105-podcast-adding-cosmosdb)
 * [Zoo 105 Podcast: adding Azure Blob storage](https://curia.me/zoo-105-podcast-adding-azure-blob-storage)
+* [Zoo 105 Podcast: Migration from .NET Core 3.1 to .NET 6](https://curia.me/zoo-105-podcast-migration-from-net-core-31-to-net-6/)
 
 ### Prerequisites
 

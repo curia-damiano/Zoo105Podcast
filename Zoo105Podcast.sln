@@ -8,8 +8,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_Solution Items", "_Solution Items", "{BB5B16E3-E721-4467-9F32-82FD8D4E7120}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		.globalconfig = .globalconfig
+		CleanAll.bat = CleanAll.bat
 		Directory.build.props = Directory.build.props
-		RuleSet1.ruleset = RuleSet1.ruleset
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BatchUploader", "BatchUploader\BatchUploader.csproj", "{88441641-8989-4834-888D-E08DDB829C07}"

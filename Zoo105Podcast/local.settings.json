@@ -1,0 +1,11 @@
+{
+	"IsEncrypted": false,
+	"Values": {
+		"AzureWebJobsStorage": "",
+		"FUNCTIONS_WORKER_RUNTIME": "dotnet"
+	},
+	"CosmosEndpointUrl": "",
+	"CosmosAuthorizationKey": "",
+	"MaxNumberEpisodesToReturn": "5",
+	"MaxNumberDaysWithoutPodcast": "5"
+}

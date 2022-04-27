@@ -1,0 +1,20 @@
+# Set all rules as warnings. Doc found at https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/configuration-options#rule-specific-options
+#dotnet_analyzer_diagnostic.severity = warning
+
+# Set all rules as warnings category by category. List found at https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/categories
+#dotnet_analyzer_diagnostic.category-CodeQuality.severity = warning
+#dotnet_analyzer_diagnostic.category-Design.severity = warning
+#dotnet_analyzer_diagnostic.category-Documentation.severity = warning
+#dotnet_analyzer_diagnostic.category-Globalization.severity = warning
+#dotnet_analyzer_diagnostic.category-Interoperability.severity = warning
+#dotnet_analyzer_diagnostic.category-Maintainability.severity = warning
+#dotnet_analyzer_diagnostic.category-Naming.severity = warning
+#dotnet_analyzer_diagnostic.category-Performance.severity = warning
+#dotnet_analyzer_diagnostic.category-SingleFile.severity = warning
+#dotnet_analyzer_diagnostic.category-Reliability.severity = warning
+#dotnet_analyzer_diagnostic.category-Security.severity = warning
+#dotnet_analyzer_diagnostic.category-Style.severity = warning
+#dotnet_analyzer_diagnostic.category-Usage.severity = warning
+
+dotnet_diagnostic.CA1014.severity = none		# CA1014: Mark assemblies with CLSCompliantAttribute
+dotnet_diagnostic.CA1305.severity = none		# CA1305: Specify IFormatProvider
