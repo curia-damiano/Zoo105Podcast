@@ -10,7 +10,11 @@ namespace Zoo105Podcast.PodcastRssGenerator4DotNet
 
 		public string Description { get; set; }
 
-		public long FileLength { get; set; }
+		public Uri ImageUrl { get; set; }
+
+		public long? FileLength { get; set; }
+
+		public TimeSpan? Duration { get; set; }
 
 		public DateTime PublicationDate { get; set; }
 	}

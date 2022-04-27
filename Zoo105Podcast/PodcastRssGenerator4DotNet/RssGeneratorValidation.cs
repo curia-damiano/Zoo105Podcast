@@ -9,28 +9,28 @@ namespace Zoo105Podcast.PodcastRssGenerator4DotNet
 			if (string.IsNullOrEmpty(Language))
 				Language = "en-US";
 			if (string.IsNullOrEmpty(PodcastUrl.ToString()))
-				throw new InvalidOperationException($"{nameof(PodcastUrl)} is null or empty");
+				throw new ArgumentException($"{nameof(PodcastUrl)} is null or empty");
 			if (string.IsNullOrEmpty(Title))
-				throw new ArgumentNullException($"{nameof(Title)} is null or empty");
+				throw new ArgumentException($"{nameof(Title)} is null or empty");
 			if (string.IsNullOrEmpty(HomePageUrl.ToString()))
-				throw new ArgumentNullException($"{nameof(HomePageUrl)} is null or empty");
+				throw new ArgumentException($"{nameof(HomePageUrl)} is null or empty");
 			if (string.IsNullOrEmpty(Description))
-				throw new ArgumentNullException($"{nameof(Description)} is null or empty");
+				throw new ArgumentException($"{nameof(Description)} is null or empty");
 			if (string.IsNullOrEmpty(AuthorName))
-				throw new ArgumentNullException($"{nameof(AuthorName)} is null or empty");
+				throw new ArgumentException($"{nameof(AuthorName)} is null or empty");
 			if (string.IsNullOrEmpty(Copyright))
-				throw new ArgumentNullException($"{nameof(Copyright)} is null or empty");
+				throw new ArgumentException($"{nameof(Copyright)} is null or empty");
 			if (string.IsNullOrEmpty(iTunesCategory))
-				throw new ArgumentNullException($"{nameof(iTunesCategory)} is null or empty");
+				throw new ArgumentException($"{nameof(iTunesCategory)} is null or empty");
 			// Subcategories can be null: https://validator.w3.org/feed/docs/error/InvalidItunesCategory.html
 			//if (string.IsNullOrEmpty(iTunesSubCategory))
-			//	throw new ArgumentNullException("iTunesSubCategory cannot be empty or null.");
+			//	throw new ArgumentException($"{nameof(iTunesSubCategory)} is null or empty");
 			if (string.IsNullOrEmpty(OwnerName))
-				throw new ArgumentNullException($"{nameof(OwnerName)} is null or empty");
+				throw new ArgumentException($"{nameof(OwnerName)} is null or empty");
 			if (string.IsNullOrEmpty(OwnerEmail))
-				throw new ArgumentNullException($"{nameof(OwnerEmail)} is null or empty");
+				throw new ArgumentException($"{nameof(OwnerEmail)} is null or empty");
 			if (string.IsNullOrEmpty(ImageUrl.ToString()))
-				throw new ArgumentNullException($"{nameof(ImageUrl)} is null or empty");
+				throw new ArgumentException($"{nameof(ImageUrl)} is null or empty");
 		}
 
 #pragma warning disable CA1822 // Mark members as static
@@ -38,13 +38,13 @@ namespace Zoo105Podcast.PodcastRssGenerator4DotNet
 #pragma warning restore CA1822 // Mark members as static
 		{
 			if (string.IsNullOrEmpty(episode.Title))
-				throw new ArgumentNullException($"{nameof(Episode.Title)} is null or empty");
+				throw new ArgumentException($"{nameof(Episode.Title)} is null or empty");
 			if (string.IsNullOrEmpty(episode.FileDownloadUrl.ToString()))
-				throw new ArgumentNullException($"{nameof(Episode.FileDownloadUrl)} is null or empty");
+				throw new ArgumentException($"{nameof(Episode.FileDownloadUrl)} is null or empty");
 			if (string.IsNullOrEmpty(episode.Description))
-				throw new ArgumentNullException($"{nameof(Episode.Description)} is null or empty");
+				throw new ArgumentException($"{nameof(Episode.Description)} is null or empty");
 			if (episode.FileLength <= 0)
-				throw new ArgumentNullException($"{nameof(Episode.FileLength)} is <= 0");
+				throw new ArgumentException($"{nameof(Episode.FileLength)} is null or empty");
 		}
 	}
 }

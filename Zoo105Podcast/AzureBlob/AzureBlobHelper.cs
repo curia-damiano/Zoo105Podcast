@@ -22,38 +22,45 @@ namespace Zoo105Podcast.AzureBlob
 		public static async Task<bool> CheckIfFileIsAlreadyStoredAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName)
 		{
 			// Check the existence of the container
-			if (!await cloudBlobContainer.ExistsAsync())
+			if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false)) {
 				return false;
+			}
 
 			// Check the existence of the file
-			string pathFileName = $"{dateUtc.ToString("yyyy/MM")}/{fileName}";
+			string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
 			CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-			if (!await cloudBlockBlob.ExistsAsync())
-				return false;
-
-			return true;
+			return await cloudBlockBlob.ExistsAsync().ConfigureAwait(false);
 		}
 
 		public static async Task<long> StoreFileAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName, Stream stream)
 		{
 			// If the container doesn't exist, create it
-			if (!await cloudBlobContainer.ExistsAsync())
-				try { await cloudBlobContainer.CreateAsync(); } catch { }
+			if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false))
+#pragma warning disable CA1031 // Do not catch general exception types
+				try { await cloudBlobContainer.CreateAsync().ConfigureAwait(false); } catch { }
+#pragma warning restore CA1031 // Do not catch general exception types
 
-			string pathFileName = $"{dateUtc.ToString("yyyy/MM")}/{fileName}";
+			string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
 			CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-			await cloudBlockBlob.UploadFromStreamAsync(stream);
+			await cloudBlockBlob.UploadFromStreamAsync(stream).ConfigureAwait(false);
 
 			return stream.Position;
 		}
 
 		internal static async Task<long> GetBlobSizeAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName)
 		{
-			string pathFileName = $"{dateUtc.ToString("yyyy/MM")}/{fileName}";
+			string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
 			CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-			await cloudBlockBlob.FetchAttributesAsync();
+			await cloudBlockBlob.FetchAttributesAsync().ConfigureAwait(false);
 			long result = cloudBlockBlob.Properties.Length;
 			return result;
+		}
+
+		internal static Task GetBlobContentAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName, Stream target)
+		{
+			string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
+			CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
+			return cloudBlockBlob.DownloadToStreamAsync(target);
 		}
 	}
 }

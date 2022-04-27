@@ -2,21 +2,21 @@
 using System.Globalization;
 using System.IO;
 using System.Threading;
-using Microsoft.Azure.Documents.Client;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.WindowsAzure.Storage.Blob;
+using NAudio.Wave;
+using NLayer.NAudioSupport;
 using Zoo105Podcast.AzureBlob;
-using Zoo105Podcast.CosmosDB;
+using Zoo105Podcast.Cosmos;
 
 namespace BatchUploader
 {
-	class Program
+	public static class Program
 	{
-		private const string folder = @"C:\Users\dacuri\Desktop\Zoo105";
+		private const string folder = @"C:\Users\dacuri\OneDrive - Microsoft\Desktop\Zoo105";
 
-#pragma warning disable CA1801 // Review unused parameters
-		static void Main(string[] args)
-#pragma warning restore CA1801 // Review unused parameters
+		public static async Task Main()
 		{
 			IConfiguration config = new ConfigurationBuilder()
 				.SetBasePath(Directory.GetCurrentDirectory())
@@ -35,43 +35,50 @@ namespace BatchUploader
 			{
 				string xName = Path.GetFileName(x);
 				string yName = Path.GetFileName(y);
-				string xDate = xName.Substring(4).Substring(0, 8);
-				string yDate = yName.Substring(4).Substring(0, 8);
+				string xDate = xName[4..(4 + 8)];//.Substring(4).Substring(0, 8);
+				string yDate = yName[4..(4 + 8)];//.Substring(4).Substring(0, 8);
 				DateTime dateX = DateTime.ParseExact(xDate, "ddMMyyyy", CultureInfo.InvariantCulture).ToUniversalTime();
 				DateTime dateY = DateTime.ParseExact(yDate, "ddMMyyyy", CultureInfo.InvariantCulture).ToUniversalTime();
 				return dateX > dateY ? 1 : -1;
 			});
 			Array.Sort(fileNames, comparison);
 
-			using (DocumentClient cosmosDBClient = CosmosDBHelper.GetCosmosDBClientAsync(config).Result)
+			using CosmosHelper cosmosHelper = new CosmosHelper(config);
+			CloudBlobContainer cloudBlobContainer = AzureBlobHelper.GetBlobContainer(config);
+
+			foreach (string fileName in fileNames)
 			{
-				CloudBlobContainer cloudBlobContainer = AzureBlobHelper.GetBlobContainer(config);
+				Console.WriteLine($"Uploading: {fileName}");
 
-				foreach (string fileName in fileNames)
+				string xName = Path.GetFileName(fileName);
+				string xDate = xName[4..(4 + 8)];//.Substring(4).Substring(0, 8);
+				DateTime dateX = DateTime.ParseExact(xDate, "ddMMyyyy", CultureInfo.InvariantCulture).AddHours(2).ToUniversalTime();
+
+				TimeSpan duration;
+				using (var mp3reader = new Mp3FileReaderBase(fileName, waveFormat => new Mp3FrameDecompressor(waveFormat)))
 				{
-					Console.WriteLine($"Uploading: {fileName}");
-
-					string xName = Path.GetFileName(fileName);
-					string xDate = xName.Substring(4).Substring(0, 8);
-					DateTime dateX = DateTime.ParseExact(xDate, "ddMMyyyy", CultureInfo.InvariantCulture).AddHours(2).ToUniversalTime();
-
-					PodcastEpisode episode = new PodcastEpisode
-					{
-						Id = dateX.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
-						DateUtc = dateX,
-						FileName = xName,
-						CompleteUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{xName}"),
-						FileLength = new FileInfo(fileName).Length
-					};
-					CosmosDBHelper.CreateNewEpisodeAsync(cosmosDBClient, episode).Wait();
-
-					using (Stream stream = File.OpenRead(fileName))
-					{
-						AzureBlobHelper.StoreFileAsync(cloudBlobContainer, episode.DateUtc, episode.FileName, stream).Wait();
-					}
-
-					Console.WriteLine($"Uploaded: {fileName}");
+					duration = mp3reader.TotalTime;
 				}
+
+				PodcastEpisode episode = new PodcastEpisode
+				{
+					Id = "zoo_" + dateX.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+					ShowName = "zoo",
+					DateUtc = dateX,
+					FileName = xName,
+					//CompleteUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{xName}"),
+					CompleteUri = new Uri($"https://podcast.mediaset.net/repliche//{dateX:yyyy}/{dateX.Month}/{dateX.Day}/{xName}"),
+					FileLength = new FileInfo(fileName).Length,
+					Duration = duration
+				};
+				await cosmosHelper.CreateNewEpisodeAsync(episode).ConfigureAwait(true);
+
+				using (Stream stream = File.OpenRead(fileName))
+				{
+					_ = await AzureBlobHelper.StoreFileAsync(cloudBlobContainer, episode.DateUtc, episode.FileName, stream).ConfigureAwait(true);
+				}
+
+				Console.WriteLine($"Uploaded: {fileName}");
 			}
 		}
 	}

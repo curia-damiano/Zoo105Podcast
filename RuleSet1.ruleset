@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<RuleSet Name="New Rule Set" Description=" " ToolsVersion="15.0">
+<RuleSet Name="New Rule Set" Description=" " ToolsVersion="17.0">
   <Rules AnalyzerId="Microsoft.Analyzers.ManagedCodeAnalysis" RuleNamespace="Microsoft.Rules.Managed">
     <Rule Id="CA1000" Action="Warning" />
     <Rule Id="CA1001" Action="Warning" />
@@ -57,14 +57,12 @@
     <Rule Id="CA1059" Action="Warning" />
     <Rule Id="CA1060" Action="Warning" />
     <Rule Id="CA1061" Action="Warning" />
-    <Rule Id="CA1062" Action="Warning" />
     <Rule Id="CA1063" Action="Warning" />
     <Rule Id="CA1064" Action="Warning" />
     <Rule Id="CA1065" Action="Warning" />
     <Rule Id="CA1300" Action="Warning" />
     <Rule Id="CA1301" Action="Warning" />
     <Rule Id="CA1302" Action="Warning" />
-    <Rule Id="CA1303" Action="Warning" />
     <Rule Id="CA1304" Action="Warning" />
     <Rule Id="CA1306" Action="Warning" />
     <Rule Id="CA1307" Action="Warning" />
@@ -139,13 +137,11 @@
     <Rule Id="CA1900" Action="Warning" />
     <Rule Id="CA1901" Action="Warning" />
     <Rule Id="CA1903" Action="Warning" />
-    <Rule Id="CA2000" Action="Warning" />
     <Rule Id="CA2001" Action="Warning" />
     <Rule Id="CA2002" Action="Warning" />
     <Rule Id="CA2003" Action="Warning" />
     <Rule Id="CA2004" Action="Warning" />
     <Rule Id="CA2006" Action="Warning" />
-    <Rule Id="CA2100" Action="Warning" />
     <Rule Id="CA2101" Action="Warning" />
     <Rule Id="CA2102" Action="Warning" />
     <Rule Id="CA2103" Action="Warning" />
@@ -191,8 +187,6 @@
     <Rule Id="CA2151" Action="Warning" />
     <Rule Id="CA2200" Action="Warning" />
     <Rule Id="CA2201" Action="Warning" />
-    <Rule Id="CA2202" Action="Warning" />
-    <Rule Id="CA2204" Action="Warning" />
     <Rule Id="CA2205" Action="Warning" />
     <Rule Id="CA2207" Action="Warning" />
     <Rule Id="CA2208" Action="Warning" />
@@ -201,7 +195,6 @@
     <Rule Id="CA2212" Action="Warning" />
     <Rule Id="CA2213" Action="Warning" />
     <Rule Id="CA2214" Action="Warning" />
-    <Rule Id="CA2215" Action="Warning" />
     <Rule Id="CA2216" Action="Warning" />
     <Rule Id="CA2217" Action="Warning" />
     <Rule Id="CA2218" Action="Warning" />
@@ -227,7 +220,6 @@
     <Rule Id="CA2238" Action="Warning" />
     <Rule Id="CA2239" Action="Warning" />
     <Rule Id="CA2240" Action="Warning" />
-    <Rule Id="CA2241" Action="Warning" />
     <Rule Id="CA2242" Action="Warning" />
     <Rule Id="CA2243" Action="Warning" />
     <Rule Id="CA5122" Action="Warning" />
@@ -235,7 +227,9 @@
   <Rules AnalyzerId="Microsoft.Analyzers.NativeCodeAnalysis" RuleNamespace="Microsoft.Rules.Native">
     <Rule Id="C26100" Action="Warning" />
     <Rule Id="C26101" Action="Warning" />
+    <Rule Id="C26102" Action="Warning" />
     <Rule Id="C26105" Action="Warning" />
+    <Rule Id="C26106" Action="Warning" />
     <Rule Id="C26110" Action="Warning" />
     <Rule Id="C26111" Action="Warning" />
     <Rule Id="C26112" Action="Warning" />
@@ -244,6 +238,9 @@
     <Rule Id="C26117" Action="Warning" />
     <Rule Id="C26130" Action="Warning" />
     <Rule Id="C26135" Action="Warning" />
+    <Rule Id="C26136" Action="Warning" />
+    <Rule Id="C26137" Action="Warning" />
+    <Rule Id="C26138" Action="Warning" />
     <Rule Id="C26140" Action="Warning" />
     <Rule Id="C26160" Action="Warning" />
     <Rule Id="C26165" Action="Warning" />
@@ -293,6 +290,10 @@
     <Rule Id="C26452" Action="Warning" />
     <Rule Id="C26453" Action="Warning" />
     <Rule Id="C26454" Action="Warning" />
+    <Rule Id="C26455" Action="Warning" />
+    <Rule Id="C26456" Action="Warning" />
+    <Rule Id="C26458" Action="Warning" />
+    <Rule Id="C26459" Action="Warning" />
     <Rule Id="C26460" Action="Warning" />
     <Rule Id="C26461" Action="Warning" />
     <Rule Id="C26462" Action="Warning" />
@@ -305,12 +306,17 @@
     <Rule Id="C26473" Action="Warning" />
     <Rule Id="C26474" Action="Warning" />
     <Rule Id="C26475" Action="Warning" />
+    <Rule Id="C26476" Action="Warning" />
+    <Rule Id="C26477" Action="Warning" />
+    <Rule Id="C26478" Action="Warning" />
+    <Rule Id="C26479" Action="Warning" />
     <Rule Id="C26481" Action="Warning" />
     <Rule Id="C26482" Action="Warning" />
     <Rule Id="C26483" Action="Warning" />
     <Rule Id="C26485" Action="Warning" />
     <Rule Id="C26486" Action="Warning" />
     <Rule Id="C26487" Action="Warning" />
+    <Rule Id="C26488" Action="Warning" />
     <Rule Id="C26489" Action="Warning" />
     <Rule Id="C26490" Action="Warning" />
     <Rule Id="C26491" Action="Warning" />
@@ -321,6 +327,22 @@
     <Rule Id="C26496" Action="Warning" />
     <Rule Id="C26497" Action="Warning" />
     <Rule Id="C26498" Action="Warning" />
+    <Rule Id="C26800" Action="Warning" />
+    <Rule Id="C26810" Action="Warning" />
+    <Rule Id="C26811" Action="Warning" />
+    <Rule Id="C26812" Action="Warning" />
+    <Rule Id="C26814" Action="Warning" />
+    <Rule Id="C26815" Action="Warning" />
+    <Rule Id="C26816" Action="Warning" />
+    <Rule Id="C26817" Action="Warning" />
+    <Rule Id="C26818" Action="Warning" />
+    <Rule Id="C26819" Action="Warning" />
+    <Rule Id="C26820" Action="Warning" />
+    <Rule Id="C26821" Action="Warning" />
+    <Rule Id="C26822" Action="Warning" />
+    <Rule Id="C26823" Action="Warning" />
+    <Rule Id="C26824" Action="Warning" />
+    <Rule Id="C26825" Action="Warning" />
     <Rule Id="C28020" Action="Warning" />
     <Rule Id="C28021" Action="Warning" />
     <Rule Id="C28022" Action="Warning" />
@@ -510,6 +532,13 @@
     <Rule Id="C28736" Action="Warning" />
     <Rule Id="C28750" Action="Warning" />
     <Rule Id="C28751" Action="Warning" />
+    <Rule Id="C33001" Action="Warning" />
+    <Rule Id="C33004" Action="Warning" />
+    <Rule Id="C33005" Action="Warning" />
+    <Rule Id="C33010" Action="Warning" />
+    <Rule Id="C33011" Action="Warning" />
+    <Rule Id="C33020" Action="Warning" />
+    <Rule Id="C33022" Action="Warning" />
     <Rule Id="C6001" Action="Warning" />
     <Rule Id="C6011" Action="Warning" />
     <Rule Id="C6014" Action="Warning" />
@@ -619,6 +648,7 @@
     <Rule Id="C6386" Action="Warning" />
     <Rule Id="C6387" Action="Warning" />
     <Rule Id="C6388" Action="Warning" />
+    <Rule Id="C6389" Action="Warning" />
     <Rule Id="C6400" Action="Warning" />
     <Rule Id="C6401" Action="Warning" />
     <Rule Id="C6411" Action="Warning" />
@@ -657,13 +687,105 @@
     <Rule Id="C6995" Action="Warning" />
     <Rule Id="C6997" Action="Warning" />
   </Rules>
-  <Rules AnalyzerId="Microsoft.CodeQuality.Analyzers" RuleNamespace="Microsoft.CodeQuality.Analyzers">
-    <Rule Id="CA2007" Action="None" />
+  <Rules AnalyzerId="Microsoft.Azure.Functions.Analyzers" RuleNamespace="Microsoft.Azure.Functions.Analyzers">
+    <Rule Id="AZF0001" Action="Warning" />
   </Rules>
-  <Rules AnalyzerId="Microsoft.CodeQuality.Analyzers.ApiDesignGuidelines" RuleNamespace="Microsoft.CodeQuality.Analyzers.ApiDesignGuidelines">
-    <Rule Id="CA1014" Action="None" />
+  <Rules AnalyzerId="Microsoft.CodeAnalysis.CSharp" RuleNamespace="Microsoft.CodeAnalysis.CSharp">
+    <Rule Id="CS8019" Action="None" />
+    <Rule Id="CS8020" Action="Warning" />
+    <Rule Id="CS8040" Action="Warning" />
+    <Rule Id="CS8933" Action="Warning" />
   </Rules>
-  <Rules AnalyzerId="Microsoft.NetCore.CSharp.Analyzers" RuleNamespace="Microsoft.NetCore.CSharp.Analyzers">
-    <Rule Id="CA1305" Action="None" />
+  <Rules AnalyzerId="Microsoft.CodeAnalysis.CSharp.Features" RuleNamespace="Microsoft.CodeAnalysis.CSharp.Features">
+    <Rule Id="IDE0001" Action="None" />
+    <Rule Id="IDE0002" Action="Warning" />
+    <Rule Id="IDE0003" Action="None" />
+    <Rule Id="IDE0004" Action="Warning" />
+    <Rule Id="IDE0005" Action="Warning" />
+    <Rule Id="IDE0007" Action="Warning" />
+    <Rule Id="IDE0008" Action="None" />
+    <Rule Id="IDE0009" Action="Warning" />
+    <Rule Id="IDE0010" Action="Warning" />
+    <Rule Id="IDE0011" Action="None" />
+    <Rule Id="IDE0016" Action="Warning" />
+    <Rule Id="IDE0017" Action="Warning" />
+    <Rule Id="IDE0018" Action="Warning" />
+    <Rule Id="IDE0019" Action="Warning" />
+    <Rule Id="IDE0020" Action="Warning" />
+    <Rule Id="IDE0021" Action="Warning" />
+    <Rule Id="IDE0022" Action="Warning" />
+    <Rule Id="IDE0023" Action="Warning" />
+    <Rule Id="IDE0024" Action="Warning" />
+    <Rule Id="IDE0025" Action="Warning" />
+    <Rule Id="IDE0026" Action="Warning" />
+    <Rule Id="IDE0027" Action="Warning" />
+    <Rule Id="IDE0028" Action="Warning" />
+    <Rule Id="IDE0029" Action="Warning" />
+    <Rule Id="IDE0030" Action="Warning" />
+    <Rule Id="IDE0031" Action="Warning" />
+    <Rule Id="IDE0032" Action="Warning" />
+    <Rule Id="IDE0034" Action="Warning" />
+    <Rule Id="IDE0036" Action="Warning" />
+    <Rule Id="IDE0037" Action="Warning" />
+    <Rule Id="IDE0038" Action="Warning" />
+    <Rule Id="IDE0039" Action="Warning" />
+    <Rule Id="IDE0040" Action="Warning" />
+    <Rule Id="IDE0041" Action="Warning" />
+    <Rule Id="IDE0042" Action="None" />
+    <Rule Id="IDE0043" Action="Warning" />
+    <Rule Id="IDE0045" Action="Warning" />
+    <Rule Id="IDE0046" Action="Warning" />
+    <Rule Id="IDE0047" Action="Warning" />
+    <Rule Id="IDE0048" Action="Warning" />
+    <Rule Id="IDE0049" Action="Warning" />
+    <Rule Id="IDE0051" Action="Warning" />
+    <Rule Id="IDE0052" Action="Warning" />
+    <Rule Id="IDE0053" Action="Warning" />
+    <Rule Id="IDE0054" Action="Warning" />
+    <Rule Id="IDE0056" Action="Warning" />
+    <Rule Id="IDE0057" Action="Warning" />
+    <Rule Id="IDE0058" Action="Warning" />
+    <Rule Id="IDE0059" Action="Warning" />
+    <Rule Id="IDE0060" Action="Warning" />
+    <Rule Id="IDE0061" Action="Warning" />
+    <Rule Id="IDE0062" Action="Warning" />
+    <Rule Id="IDE0063" Action="Warning" />
+    <Rule Id="IDE0064" Action="Warning" />
+    <Rule Id="IDE0065" Action="None" />
+    <Rule Id="IDE0066" Action="Warning" />
+    <Rule Id="IDE0071" Action="Warning" />
+    <Rule Id="IDE0072" Action="Warning" />
+    <Rule Id="IDE0073" Action="Warning" />
+    <Rule Id="IDE0074" Action="Warning" />
+    <Rule Id="IDE0075" Action="Warning" />
+    <Rule Id="IDE0076" Action="Warning" />
+    <Rule Id="IDE0077" Action="Warning" />
+    <Rule Id="IDE0078" Action="Warning" />
+    <Rule Id="IDE0079" Action="Warning" />
+    <Rule Id="IDE0080" Action="Warning" />
+    <Rule Id="IDE0082" Action="Warning" />
+    <Rule Id="IDE0083" Action="Warning" />
+    <Rule Id="IDE0090" Action="Warning" />
+    <Rule Id="IDE0100" Action="Warning" />
+    <Rule Id="IDE0110" Action="Warning" />
+    <Rule Id="IDE0120" Action="Warning" />
+    <Rule Id="IDE0130" Action="None" />
+    <Rule Id="IDE0150" Action="Warning" />
+    <Rule Id="IDE0160" Action="Warning" />
+    <Rule Id="IDE0161" Action="Warning" />
+    <Rule Id="IDE1005" Action="Warning" />
+    <Rule Id="IDE1006" Action="Warning" />
+    <Rule Id="IDE2000" Action="Warning" />
+    <Rule Id="IDE2001" Action="Warning" />
+    <Rule Id="IDE2002" Action="Warning" />
+    <Rule Id="IDE2003" Action="Warning" />
+    <Rule Id="IDE2004" Action="Warning" />
+    <Rule Id="RE0001" Action="Warning" />
+  </Rules>
+  <Rules AnalyzerId="Microsoft.CodeAnalysis.Features" RuleNamespace="Microsoft.CodeAnalysis.Features">
+    <Rule Id="IDE0033" Action="Warning" />
+    <Rule Id="IDE0044" Action="Warning" />
+    <Rule Id="IDE0055" Action="None" />
+    <Rule Id="IDE0070" Action="Warning" />
   </Rules>
 </RuleSet>

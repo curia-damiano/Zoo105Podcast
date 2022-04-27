@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,25 +9,30 @@ using System.Xml;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Zoo105Podcast.AzureQueue;
-using Zoo105Podcast.CosmosDB;
+using Zoo105Podcast.Cosmos;
 using Zoo105Podcast.PodcastRssGenerator4DotNet;
 
 namespace Zoo105Podcast
 {
 	public static class FunctionZoo105Podcast
 	{
+		private static readonly (int PodcastSourceId, string ShowName, string TitleFormat, string DescriptionFormat, Uri ImageUrl)[] podcastSources = {
+			(0, "zoo",         "Lo Zoo di 105 del {0}", "Puntata completa dello Zoo di 105 del {0}", new Uri("https://w7.pngwing.com/pngs/665/126/png-transparent-italy-radio-105-network-radio-deejay-radiofonia-comedian-zoo-playful-purple-violet-magenta.png")),
+			(1, "105polaroyd", "105 Polaroyd del {0}",  "Puntata completa di 105 Polaroyd del {0}",  new Uri("https://zoo.105.net/resizer/-1/-1/true/1540546271185.png--.png?1540546271000"))
+		};
+
 		[FunctionName("Zoo105Podcast")]
-#pragma warning disable CA1801 // Review unused parameters
 		public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]
-			HttpRequest req, ILogger logger, Microsoft.Azure.WebJobs.ExecutionContext context)
+#pragma warning disable CA1801 // Review unused parameters
+			HttpRequest req,
 #pragma warning restore CA1801 // Review unused parameters
+			ILogger logger, Microsoft.Azure.WebJobs.ExecutionContext context)
 		{
 			logger.LogInformation("C# HTTP trigger function processed a request.");
 
@@ -41,27 +47,25 @@ namespace Zoo105Podcast
 
 			// Podcast code taken initiallly from https://github.com/keyvan/PodcastRssGenerator4DotNet/blob/master/PodcastRssGenerator4DotNet/PodcastRssGenerator4DotNet.Test/Default.aspx.cs
 			// How apply encoding to XmlWriter: https://stackoverflow.com/questions/427725/how-to-put-an-encoding-attribute-to-xml-other-that-utf-16-with-xmlwriter
-			using (MemoryStream memoryStream = new MemoryStream())
+			using MemoryStream memoryStream = new MemoryStream();
+			XmlWriterSettings settings = new XmlWriterSettings
 			{
-				XmlWriterSettings settings = new XmlWriterSettings
-				{
-					Encoding = Encoding.UTF8
-				};
+				Encoding = Encoding.UTF8
+			};
 
-				using (XmlWriter writer = XmlWriter.Create(memoryStream, settings))
-				{
-					RssGenerator generator = await GetGeneratorAsync(config);
-					generator.Generate(writer);
-				}
-
-				string xmlString = settings.Encoding.GetString(memoryStream.ToArray());
-
-				return new ContentResult
-				{
-					Content = xmlString.ToString(),
-					ContentType = "application/rss+xml"
-				};
+			using (XmlWriter writer = XmlWriter.Create(memoryStream, settings))
+			{
+				RssGenerator generator = await GetGeneratorAsync(config).ConfigureAwait(false);
+				generator.Generate(writer);
 			}
+
+			string xmlString = settings.Encoding.GetString(memoryStream.ToArray());
+
+			return new ContentResult
+			{
+				Content = xmlString.ToString(),
+				ContentType = "application/rss+xml"
+			};
 		}
 
 		private static async Task<RssGenerator> GetGeneratorAsync(IConfiguration config)
@@ -69,14 +73,14 @@ namespace Zoo105Podcast
 			RssGenerator generator = new RssGenerator
 			{
 				Language = "it-IT",
-				PodcastUrl = new Uri("https://functionapp20180423052306.azurewebsites.net/api/Zoo105Podcast"),
+				PodcastUrl = new Uri("http://zoo105podcast.azurewebsites.net/api/Zoo105Podcast"),
 				Title = "Lo Zoo di 105 - Full Episodes",
-				HomePageUrl = new Uri("https://functionapp20180423052306.azurewebsites.net/"),
+				HomePageUrl = new Uri("http://zoo105podcast.azurewebsites.net"),
 				Description = "Podcast non ufficiale dello Zoo di 105",
 				AuthorName = "Curia Damiano",
 				Copyright = $"Copyright {DateTime.UtcNow.Year} Curia Damiano. All rights reserved.",
 				iTunesCategory = "News & Politics",
-				iTunesSubCategory = string.Empty,
+				iTunesSubCategory = "Entertainment News",
 				IsExplicit = true,
 				OwnerName = "Curia Damiano",
 				OwnerEmail = "damiano.curia@gmail.com",
@@ -84,14 +88,18 @@ namespace Zoo105Podcast
 			};
 
 			List<Episode> episodes = new List<Episode>();
-			foreach (PodcastEpisode podcast in await GetPodcastsAsync(config))
+			foreach (PodcastEpisode podcast in await GetPodcastsAsync(config).ConfigureAwait(false))
 			{
+				var podcastSource = podcastSources.Single(ps => ps.ShowName == podcast.ShowName);
+
 				episodes.Add(new Episode()
 				{
-					Title = $"Puntata del {podcast.DateUtc.ToString("dd/MM/yyyy")}",
+					Title = string.Format(podcastSource.TitleFormat, podcast.DateUtc.ToString("dd/MM/yyyy")),
 					FileDownloadUrl = podcast.CompleteUri,
-					Description = $"Puntata completa dello Zoo di 105 del {podcast.DateUtc.ToString("dd/MM/yyyy")}",
+					Description = string.Format(podcastSource.DescriptionFormat, podcast.DateUtc.ToString("dd/MM/yyyy")),
+					ImageUrl = podcastSource.ImageUrl,
 					FileLength = podcast.FileLength,
+					Duration = podcast.Duration,
 					PublicationDate = podcast.DateUtc
 				});
 			}
@@ -100,6 +108,7 @@ namespace Zoo105Podcast
 			return generator;
 		}
 
+		private const string yyyyMMdd = "yyyyMMdd";
 		private static async Task<List<PodcastEpisode>> GetPodcastsAsync(IConfiguration config)
 		{
 			int maxNumberEpisodesToReturn = int.Parse(config["MaxNumberEpisodesToReturn"]);
@@ -107,102 +116,110 @@ namespace Zoo105Podcast
 			DateTime currDate = DateTime.UtcNow.Date;
 			int numDaysWithoutPodcast = 0;
 
-			using (HttpClient httpClient = new HttpClient())
+			using HttpClient httpClient = new HttpClient();
+			httpClient.Timeout = new TimeSpan(0, 0, 5);
+
+			using CosmosHelper cosmosHelper = new CosmosHelper(config);
+			CloudQueue queue = await AzureQueueHelper.GetAzureQueueAsync(config).ConfigureAwait(false);
+
+			List<PodcastEpisode> result = new List<PodcastEpisode>();
+
+			// We continue to search episodes in the past and we stop when any of the following cases happen:
+			// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
+			// - the number of  days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
+			while (result.Count < maxNumberEpisodesToReturn &&
+				numDaysWithoutPodcast <= maxNumberDaysWithoutPodcast)
 			{
-				using (DocumentClient cosmosDBClient = await CosmosDBHelper.GetCosmosDBClientAsync(config))
+				bool foundAtLeastOnePodcast = false;
+				foreach (var podcastSource in podcastSources)
 				{
-					CloudQueue queue = await AzureQueueHelper.GetAzureQueueAsync(config);
+					string podcastId = $"{podcastSource.ShowName}_{currDate.ToString(yyyyMMdd)}";
 
-					List<PodcastEpisode> result = new List<PodcastEpisode>();
+					// Check if the podcast info is already in Cosmos
+					PodcastEpisode episode = await cosmosHelper.GetPodcastEpisodeAsync(podcastId).ConfigureAwait(false);
 
-					// We continue to search episodes in the past and we stop when any of the following cases happen:
-					// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
-					// - the number of  days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
-					while (result.Count < maxNumberEpisodesToReturn &&
-						numDaysWithoutPodcast <= maxNumberEpisodesToReturn)
+					// If no episode found for this key, try to check if it is available to download
+					if (episode == null)
 					{
-						string podcastId = currDate.ToString("yyyyMMdd");
-
-						// Check if the podcast info is already in CosmosDB
-						PodcastEpisode episode = await CosmosDBHelper.GetPodcastEpisodeAsync(cosmosDBClient, podcastId);
-
-						// If no episode found for this key, try to check if it is available to download
-						if (episode == null)
+						string fileName = $"{GetDayOfWeek(currDate)}_{currDate:ddMMyyyy}_{podcastSource.ShowName}.mp3";
+						//Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
+						Uri completeUri = new Uri($"https://podcast.mediaset.net/repliche//{currDate:yyyy}/{currDate.Month}/{currDate.Day}/{fileName}");
+						using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, completeUri);
+						try
 						{
-							string fileName = $"{GetDayOfWeek(currDate)}_{currDate.ToString("ddMMyyyy")}_zoo.mp3";
-							Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
-							using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, completeUri))
+							using HttpResponseMessage response = await httpClient.SendAsync(request).ConfigureAwait(false);
+							Console.WriteLine(response.Headers.ToString());
+							if (response.IsSuccessStatusCode || ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399))
 							{
-								try
+								// Note: the order of the next two storages is important:
+								// - if I would save first in Cosmos, then in case of error when enqueuing,
+								//   on the next call of the function I would not enter her anymore (the item will be
+								//   is found in Cosmos) but the download would be lost.
+								var episode2download = new Podcast2Download
 								{
-									using (HttpResponseMessage response = await httpClient.SendAsync(request))
-									{
-										Console.WriteLine(response.Headers.ToString());
-										if (response.IsSuccessStatusCode)
-										{
-											// Note: the order of the next two storages is important:
-											// - if I would save first in CosmosDB, then in case of error when enqueuing,
-											//   on the next call of the function I would not enter her anymore (the item will be
-											//   is found in CosmosDB) but the download would be lost.
-											var episode2download = new Podcast2Download
-											{
-												Id = podcastId,
-												DateUtc = currDate,
-												FileName = fileName,
-												CompleteUri = completeUri
-											};
-											await AzureQueueHelper.EnqueueItemAsync(queue, episode2download);
+									Id = podcastId,
+									DateUtc = currDate,
+									FileName = fileName,
+									CompleteUri = completeUri
+								};
+								await AzureQueueHelper.EnqueueItemAsync(queue, episode2download).ConfigureAwait(false);
 
-											episode = new PodcastEpisode
-											{
-												Id = podcastId,
-												DateUtc = currDate,
-												FileName = fileName,
-												CompleteUri = completeUri,
-												FileLength = 1 // The real value will be fixed in DB after downloading the file
-											};
-											await CosmosDBHelper.CreateNewEpisodeAsync(cosmosDBClient, episode);
-										}
-									}
-								}
-								catch (HttpRequestException)
+								episode = new PodcastEpisode
 								{
-									// This exception can happen when the file is not available (the server returns 404 in a strange way)
-								}
+									Id = podcastId,
+									ShowName = podcastSource.ShowName,
+									DateUtc = currDate,
+									FileName = fileName,
+									CompleteUri = completeUri,
+									FileLength = null, // The real value will be fixed in DB after downloading the file
+									Duration = null    // The real value will be fixed in DB after downloading the file
+								};
+								await cosmosHelper.CreateNewEpisodeAsync(episode).ConfigureAwait(false);
 							}
 						}
-
-						if (episode != null)
+						catch (HttpRequestException)
 						{
-							// If an episode has been found, add it to the result collection and reset the number of days without episodes
-							result.Add(episode);
-							numDaysWithoutPodcast = 0;
+							// This exception can happen when the file is not available (the server returns 404 in a strange way)
 						}
-						else
-							// If still no found any episode, increase numDaysWithoutPodcast
-							numDaysWithoutPodcast++;
-
-						currDate = currDate.AddDays(-1);
+						catch (TaskCanceledException)
+						{
+							// This exception can happen when the file is not available (the server takes long time to reply)
+						}
 					}
 
-					return result;
+					if (episode != null)
+					{
+						// If an episode has been found, add it to the result collection and reset the number of days without episodes
+						result.Add(episode);
+						foundAtLeastOnePodcast = true;
+						numDaysWithoutPodcast = 0;
+					}
 				}
+
+				if (!foundAtLeastOnePodcast)
+				{
+					// If still no found any episode, increase numDaysWithoutPodcast
+					numDaysWithoutPodcast++;
+				}
+				currDate = currDate.AddDays(-1);
 			}
+
+			return result;
 		}
 
 		private static string GetDayOfWeek(DateTime date)
 		{
-			switch (date.DayOfWeek)
+			return date.DayOfWeek switch
 			{
-				case DayOfWeek.Monday: return "lun";
-				case DayOfWeek.Tuesday: return "mar";
-				case DayOfWeek.Wednesday: return "mer";
-				case DayOfWeek.Thursday: return "gio";
-				case DayOfWeek.Friday: return "ven";
-				case DayOfWeek.Saturday: return "sab";
-				case DayOfWeek.Sunday: return "dom";
-			}
-			throw new NotImplementedException($"getDayOfWeek: date=={date}");
+				DayOfWeek.Monday    => "lun",
+				DayOfWeek.Tuesday   => "mar",
+				DayOfWeek.Wednesday => "mer",
+				DayOfWeek.Thursday  => "gio",
+				DayOfWeek.Friday    => "ven",
+				DayOfWeek.Saturday  => "sab",
+				DayOfWeek.Sunday    => "dom",
+				_                   => throw new NotImplementedException($"getDayOfWeek: date=={date}"),
+			};
 		}
 	}
 }
