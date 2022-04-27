@@ -8,6 +8,7 @@ using System.Xml;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
@@ -106,59 +107,69 @@ namespace Zoo105Podcast
 
 			using (HttpClient httpClient = new HttpClient())
 			{
-				List<PodcastEpisode> result = new List<PodcastEpisode>();
-
-				// We continue to search episodes in the past and we stop when any of the following cases happen:
-				// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
-				// - the number of  days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
-				while (result.Count < maxNumberEpisodesToReturn &&
-					numDaysWithoutPodcast <= maxNumberEpisodesToReturn)
+				using (DocumentClient cosmosDBClient = await CosmosDBHelper.GetCosmosDBClientAsync(config))
 				{
-					string podcastId = currDate.ToString("yyyyMMdd");
-					PodcastEpisode episode = null;
+					List<PodcastEpisode> result = new List<PodcastEpisode>();
 
-					string fileName = $"{GetDayOfWeek(currDate)}_{currDate.ToString("ddMMyyyy")}_zoo.mp3";
-					Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
-					using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, completeUri))
+					// We continue to search episodes in the past and we stop when any of the following cases happen:
+					// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
+					// - the number of  days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
+					while (result.Count < maxNumberEpisodesToReturn &&
+						numDaysWithoutPodcast <= maxNumberEpisodesToReturn)
 					{
-						try
+						string podcastId = currDate.ToString("yyyyMMdd");
+
+						// Check if the podcast info is already in CosmosDB
+						PodcastEpisode episode = await CosmosDBHelper.GetPodcastEpisodeAsync(cosmosDBClient, podcastId);
+
+						// If no episode found for this key, try to check if it is available to download
+						if (episode == null)
 						{
-							using (HttpResponseMessage response = await httpClient.SendAsync(request))
+							string fileName = $"{GetDayOfWeek(currDate)}_{currDate.ToString("ddMMyyyy")}_zoo.mp3";
+							Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
+							using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, completeUri))
 							{
-								Console.WriteLine(response.Headers.ToString());
-								if (response.IsSuccessStatusCode)
+								try
 								{
-									episode = new PodcastEpisode
+									using (HttpResponseMessage response = await httpClient.SendAsync(request))
 									{
-										Id = podcastId,
-										DateUtc = currDate,
-										FileName = fileName,
-										CompleteUri = completeUri,
-										FileLength = 1 // The real value will be fixed in DB after downloading the file
-									};
+										Console.WriteLine(response.Headers.ToString());
+										if (response.IsSuccessStatusCode)
+										{
+											episode = new PodcastEpisode
+											{
+												Id = podcastId,
+												DateUtc = currDate,
+												FileName = fileName,
+												CompleteUri = completeUri,
+												FileLength = 1 // The real value will be fixed in DB after downloading the file
+											};
+											await CosmosDBHelper.CreateNewEpisodeAsync(cosmosDBClient, episode);
+										}
+									}
+								}
+								catch (HttpRequestException)
+								{
+									// This exception can happen when the file is not available (the server returns 404 in a strange way)
 								}
 							}
 						}
-						catch (HttpRequestException)
+
+						if (episode != null)
 						{
-							// This exception can happen when the file is not available (the server returns 404 in a strange way)
+							// If an episode has been found, add it to the result collection and reset the number of days without episodes
+							result.Add(episode);
+							numDaysWithoutPodcast = 0;
 						}
+						else
+							// If still no found any episode, increase numDaysWithoutPodcast
+							numDaysWithoutPodcast++;
+
+						currDate = currDate.AddDays(-1);
 					}
 
-					if (episode != null)
-					{
-						// If an episode has been found, add it to the result collection and reset the number of days without episodes
-						result.Add(episode);
-						numDaysWithoutPodcast = 0;
-					}
-					else
-						// If still no found any episode, increase numDaysWithoutPodcast
-						numDaysWithoutPodcast++;
-
-					currDate = currDate.AddDays(-1);
+					return result;
 				}
-
-				return result;
 			}
 		}
 
