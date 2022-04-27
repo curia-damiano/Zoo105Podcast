@@ -13,6 +13,8 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage.Queue;
+using Zoo105Podcast.AzureQueue;
 using Zoo105Podcast.CosmosDB;
 using Zoo105Podcast.PodcastRssGenerator4DotNet;
 
@@ -109,6 +111,8 @@ namespace Zoo105Podcast
 			{
 				using (DocumentClient cosmosDBClient = await CosmosDBHelper.GetCosmosDBClientAsync(config))
 				{
+					CloudQueue queue = await AzureQueueHelper.GetAzureQueueAsync(config);
+
 					List<PodcastEpisode> result = new List<PodcastEpisode>();
 
 					// We continue to search episodes in the past and we stop when any of the following cases happen:
@@ -136,6 +140,19 @@ namespace Zoo105Podcast
 										Console.WriteLine(response.Headers.ToString());
 										if (response.IsSuccessStatusCode)
 										{
+											// Note: the order of the next two storages is important:
+											// - if I would save first in CosmosDB, then in case of error when enqueuing,
+											//   on the next call of the function I would not enter her anymore (the item will be
+											//   is found in CosmosDB) but the download would be lost.
+											var episode2download = new Podcast2Download
+											{
+												Id = podcastId,
+												DateUtc = currDate,
+												FileName = fileName,
+												CompleteUri = completeUri
+											};
+											await AzureQueueHelper.EnqueueItemAsync(queue, episode2download);
+
 											episode = new PodcastEpisode
 											{
 												Id = podcastId,
