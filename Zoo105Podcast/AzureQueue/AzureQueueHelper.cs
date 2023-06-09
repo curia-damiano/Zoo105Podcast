@@ -1,5 +1,5 @@
 ﻿using System;
-using JsonSerializer = System.Text.Json.JsonSerializer;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.WindowsAzure.Storage;
@@ -13,7 +13,7 @@ public static class AzureQueueHelper
 
 	public static async Task<CloudQueue> GetAzureQueueAsync(IConfiguration config)
 	{
-		if (config == null) throw new ArgumentNullException(nameof(config));
+		ArgumentNullException.ThrowIfNull(config);
 
 		CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["AzureWebJobsStorage"]);
 		CloudQueueClient queueClient = storageAccount.CreateCloudQueueClient();
@@ -24,10 +24,10 @@ public static class AzureQueueHelper
 
 	public static Task EnqueueItemAsync(CloudQueue queue, Podcast2Download episode)
 	{
-		if (queue == null) throw new ArgumentNullException(nameof(queue));
+		ArgumentNullException.ThrowIfNull(queue);
 
 		string serializedObj = JsonSerializer.Serialize(episode);
-		CloudQueueMessage message = new CloudQueueMessage(serializedObj);
+		CloudQueueMessage message = new(serializedObj);
 		return queue.AddMessageAsync(message);
 	}
 

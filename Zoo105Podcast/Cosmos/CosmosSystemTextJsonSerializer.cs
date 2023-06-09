@@ -5,16 +5,16 @@ using Microsoft.Azure.Cosmos;
 namespace Zoo105Podcast.Cosmos;
 
 /// <remarks>
-// Code adapted from: https://ankitvijay.net/2021/06/20/custom-json-serializer-settings-with-cosmos-db-sdk/
-// See: https://github.com/Azure/azure-cosmos-dotnet-v3/blob/master/Microsoft.Azure.Cosmos.Samples/Usage/SystemTextJson/CosmosSystemTextJsonSerializer.cs
+/// Code adapted from: https://ankitvijay.net/2021/06/20/custom-json-serializer-settings-with-cosmos-db-sdk/
+/// See: https://github.com/Azure/azure-cosmos-dotnet-v3/blob/master/Microsoft.Azure.Cosmos.Samples/Usage/SystemTextJson/CosmosSystemTextJsonSerializer.cs
 /// </remarks>
 internal sealed class CosmosSystemTextJsonSerializer : CosmosSerializer
 {
-	private readonly JsonSerializerOptions? jsonSerializerOptions;
+	private readonly JsonSerializerOptions? _jsonSerializerOptions;
 
 	public CosmosSystemTextJsonSerializer(JsonSerializerOptions? jsonSerializerOptions = null)
 	{
-		this.jsonSerializerOptions = jsonSerializerOptions;/*new JsonSerializerOptions
+		this._jsonSerializerOptions = jsonSerializerOptions;/*new JsonSerializerOptions
 		{
 			// Update your JSON Serializer options here.
 			PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -40,14 +40,14 @@ internal sealed class CosmosSystemTextJsonSerializer : CosmosSerializer
 
 		using (stream)
 		{
-			return JsonSerializer.Deserialize<T>(stream, this.jsonSerializerOptions)!;
+			return JsonSerializer.Deserialize<T>(stream, this._jsonSerializerOptions)!;
 		}
 	}
 
 	public override Stream ToStream<T>(T input)
 	{
 		var streamPayload = new MemoryStream();
-		JsonSerializer.Serialize(streamPayload, input, this.jsonSerializerOptions);
+		JsonSerializer.Serialize(streamPayload, input, this._jsonSerializerOptions);
 		streamPayload.Position = 0;
 		return streamPayload;
 	}

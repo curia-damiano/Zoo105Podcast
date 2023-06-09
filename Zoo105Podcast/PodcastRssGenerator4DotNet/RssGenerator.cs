@@ -8,7 +8,7 @@ public partial class RssGenerator
 {
 	public void Generate(XmlWriter writer)
 	{
-		if (writer == null) throw new ArgumentNullException(nameof(writer));
+		ArgumentNullException.ThrowIfNull(writer);
 
 		// Validates nullable properties, so after this method it's safe to reference them with "!"
 		ValidatePodcastProperties();
@@ -49,7 +49,8 @@ public partial class RssGenerator
 		// Start itunes:category
 		writer.WriteStartElement("itunes", "category", itunesUri);
 		writer.WriteAttributeString("text", this.iTunesCategory);
-		if (!string.IsNullOrEmpty(this.iTunesSubCategory)) {
+		if (!string.IsNullOrEmpty(this.iTunesSubCategory))
+		{
 			// Start itunes:category
 			writer.WriteStartElement("itunes", "category", itunesUri);
 			writer.WriteAttributeString("text", this.iTunesSubCategory);
@@ -72,8 +73,10 @@ public partial class RssGenerator
 		writer.WriteStartElement("itunes", "image", itunesUri); writer.WriteAttributeString("href", this.ImageUrl!.ToString()); writer.WriteEndElement();
 		writer.WriteStartElement("googleplay", "image", itunesUri); writer.WriteAttributeString("href", this.ImageUrl.ToString()); writer.WriteEndElement();
 
-		if (this.Episodes != null) {
-			foreach (Episode episode in this.Episodes) {
+		if (this.Episodes != null)
+		{
+			foreach (Episode episode in this.Episodes)
+			{
 				ValidateEpisodeProperties(episode);
 
 				// Start podcast item
@@ -85,7 +88,8 @@ public partial class RssGenerator
 
 				// Start and end enclosure
 				writer.WriteStartElement("enclosure");
-				if (episode.FileLength != null) {
+				if (episode.FileLength != null)
+				{
 					writer.WriteAttributeString("length", episode.FileLength.Value.ToString());
 				}
 				writer.WriteAttributeString("type", "audio/mpeg");
@@ -93,12 +97,13 @@ public partial class RssGenerator
 				writer.WriteEndElement();
 
 				// Back to item
-				if (episode.Duration != null) {
+				if (episode.Duration != null)
+				{
 					writer.WriteElementString("itunes", "duration", itunesUri, TimeSpanToString(episode.Duration.Value));
 				}
 				writer.WriteStartElement("itunes", "image", itunesUri); writer.WriteAttributeString("href", episode.ImageUrl.ToString()); writer.WriteEndElement();
 				writer.WriteStartElement("googleplay", "image", itunesUri); writer.WriteAttributeString("href", episode.ImageUrl.ToString()); writer.WriteEndElement();
-				writer.WriteElementString("pubDate", GetRFC822Date(episode.PublicationDate));
+				writer.WriteElementString("pubDate", GetRfc822Date(episode.PublicationDate));
 				writer.WriteElementString("guid", episode.FileDownloadUrl.ToString());
 
 				// End podcast item
@@ -120,13 +125,14 @@ public partial class RssGenerator
 	}
 
 	// From: https://madskristensen.net/blog/convert-a-date-to-the-rfc822-standard-for-use-in-rss-feeds/
-	private static string GetRFC822Date(DateTime date)
+	private static string GetRfc822Date(DateTime date)
 	{
 		CultureInfo formattingCulture = CultureInfo.GetCultureInfo("en-UK");
 
 		int offset = 0;// TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now).Hours;
 		string timeZone = "+" + offset.ToString().PadLeft(2, '0');
-		if (offset < 0) {
+		if (offset < 0)
+		{
 			int i = offset * -1;
 			timeZone = "-" + i.ToString().PadLeft(2, '0');
 		}

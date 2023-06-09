@@ -25,7 +25,7 @@ public static class FunctionDownload2Blob
 	{
 		logger.LogInformation($"C# Queue trigger function processed: {myQueueItem}");
 
-		if (context == null) throw new ArgumentNullException(nameof(context));
+		ArgumentNullException.ThrowIfNull(context);
 
 		var config = new ConfigurationBuilder()
 			.SetBasePath(context.FunctionAppDirectory)
@@ -40,15 +40,15 @@ public static class FunctionDownload2Blob
 
 		long fileSize;
 		TimeSpan duration;
-		using (MemoryStream memoryStream = new MemoryStream())
+		using (MemoryStream memoryStream = new())
 		{
 			CloudBlobContainer cloudBlobContainer = AzureBlobHelper.GetBlobContainer(config);
 			if (!await AzureBlobHelper.CheckIfFileIsAlreadyStoredAsync(cloudBlobContainer, episode2download.DateUtc, episode2download.FileName).ConfigureAwait(false))
 			{
-				using HttpClient httpClient = new HttpClient();
+				using HttpClient httpClient = new();
 
 				Uri afterRedirectUri;
-				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, episode2download.CompleteUri))
+				using (HttpRequestMessage request = new(HttpMethod.Head, episode2download.CompleteUri))
 				{
 					using HttpResponseMessage httpResponse = await httpClient.SendAsync(request).ConfigureAwait(false);
 
@@ -81,12 +81,12 @@ public static class FunctionDownload2Blob
 			}
 
 			_ = memoryStream.Seek(0, SeekOrigin.Begin);
-			using var mp3reader = new Mp3FileReaderBase(memoryStream, waveFormat => new Mp3FrameDecompressor(waveFormat));
-			duration = mp3reader.TotalTime;
+			using Mp3FileReaderBase mp3Reader = new(memoryStream, waveFormat => new Mp3FrameDecompressor(waveFormat));
+			duration = mp3Reader.TotalTime;
 		}
 
 		// After downloading the file, check the file size and the duration in Cosmos, and if wrong, update it
-		using CosmosHelper cosmosHelper = new CosmosHelper(config);
+		using CosmosHelper cosmosHelper = new(config);
 		PodcastEpisode? episode = await cosmosHelper.GetPodcastEpisodeAsync(episode2download.Id).ConfigureAwait(false);
 		if (episode == null)
 			throw new MyApplicationException($"Episode '{episode2download.Id}' not found in storage.");

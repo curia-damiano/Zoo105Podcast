@@ -13,7 +13,7 @@ public static class AzureBlobHelper
 
 	public static CloudBlobContainer GetBlobContainer(IConfiguration config)
 	{
-		if (config == null) throw new ArgumentNullException(nameof(config));
+		ArgumentNullException.ThrowIfNull(config);
 
 		CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["AzureWebJobsStorage"]);
 		CloudBlobClient cloudBlobClient = storageAccount.CreateCloudBlobClient();
@@ -23,10 +23,11 @@ public static class AzureBlobHelper
 
 	public static async Task<bool> CheckIfFileIsAlreadyStoredAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName)
 	{
-		if (cloudBlobContainer == null) throw new ArgumentNullException(nameof(cloudBlobContainer));
+		ArgumentNullException.ThrowIfNull(cloudBlobContainer);
 
 		// Check the existence of the container
-		if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false)) {
+		if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false))
+		{
 			return false;
 		}
 
@@ -38,8 +39,8 @@ public static class AzureBlobHelper
 
 	public static async Task<long> StoreFileAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName, Stream stream)
 	{
-		if (cloudBlobContainer == null) throw new ArgumentNullException(nameof(cloudBlobContainer));
-		if (stream == null) throw new ArgumentNullException(nameof(stream));
+		ArgumentNullException.ThrowIfNull(cloudBlobContainer);
+		ArgumentNullException.ThrowIfNull(stream);
 
 		// If the container doesn't exist, create it
 		if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false))

@@ -14,7 +14,7 @@ namespace BatchUploader;
 
 public static class Program
 {
-	private const string folder = @"C:\Users\dacuri\OneDrive - Microsoft\Desktop\Zoo105";
+	private const string _folder = @"C:\Users\dacuri\OneDrive - Microsoft\Desktop\Zoo105";
 
 	public static async Task Main()
 	{
@@ -28,22 +28,22 @@ public static class Program
 		Thread.CurrentThread.CurrentCulture = new CultureInfo("it-IT");
 
 		// Load file names
-		string[] fileNames = Directory.GetFiles(folder, "*.mp3");
+		string[] fileNames = Directory.GetFiles(_folder, "*.mp3");
 
 		// Sort array by dates
-		Comparison<string> comparison = new Comparison<string>((x, y) =>
+		int Comparison(string x, string y)
 		{
 			string xName = Path.GetFileName(x);
 			string yName = Path.GetFileName(y);
-			string xDate = xName[4..(4 + 8)];//.Substring(4).Substring(0, 8);
-			string yDate = yName[4..(4 + 8)];//.Substring(4).Substring(0, 8);
+			string xDate = xName[4..(4 + 8)]; //.Substring(4).Substring(0, 8);
+			string yDate = yName[4..(4 + 8)]; //.Substring(4).Substring(0, 8);
 			DateTime dateX = DateTime.ParseExact(xDate, "ddMMyyyy", CultureInfo.InvariantCulture).ToUniversalTime();
 			DateTime dateY = DateTime.ParseExact(yDate, "ddMMyyyy", CultureInfo.InvariantCulture).ToUniversalTime();
 			return dateX > dateY ? 1 : -1;
-		});
-		Array.Sort(fileNames, comparison);
+		}
+		Array.Sort(fileNames, Comparison);
 
-		using CosmosHelper cosmosHelper = new CosmosHelper(config);
+		using CosmosHelper cosmosHelper = new(config);
 		CloudBlobContainer cloudBlobContainer = AzureBlobHelper.GetBlobContainer(config);
 
 		foreach (string fileName in fileNames)
@@ -55,12 +55,12 @@ public static class Program
 			DateTime dateX = DateTime.ParseExact(xDate, "ddMMyyyy", CultureInfo.InvariantCulture).AddHours(2).ToUniversalTime();
 
 			TimeSpan duration;
-			using (var mp3reader = new Mp3FileReaderBase(fileName, waveFormat => new Mp3FrameDecompressor(waveFormat)))
+			using (Mp3FileReaderBase mp3Reader = new(fileName, waveFormat => new Mp3FrameDecompressor(waveFormat)))
 			{
-				duration = mp3reader.TotalTime;
+				duration = mp3Reader.TotalTime;
 			}
 
-			PodcastEpisode episode = new PodcastEpisode
+			PodcastEpisode episode = new()
 			{
 				Id = "zoo_" + dateX.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
 				ShowName = "zoo",

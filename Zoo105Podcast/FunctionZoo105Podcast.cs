@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -36,7 +36,7 @@ public static class FunctionZoo105Podcast
 	{
 		logger.LogInformation("C# HTTP trigger function processed a request.");
 
-		if (context == null) throw new ArgumentNullException(nameof(context));
+		ArgumentNullException.ThrowIfNull(context);
 
 		var config = new ConfigurationBuilder()
 			.SetBasePath(context.FunctionAppDirectory)
@@ -47,10 +47,10 @@ public static class FunctionZoo105Podcast
 		// Change to a culture that has the correct date and time separators
 		Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
 
-		// Podcast code taken initiallly from https://github.com/keyvan/PodcastRssGenerator4DotNet/blob/master/PodcastRssGenerator4DotNet/PodcastRssGenerator4DotNet.Test/Default.aspx.cs
+		// Podcast code taken initially from https://github.com/keyvan/PodcastRssGenerator4DotNet/blob/master/PodcastRssGenerator4DotNet/PodcastRssGenerator4DotNet.Test/Default.aspx.cs
 		// How apply encoding to XmlWriter: https://stackoverflow.com/questions/427725/how-to-put-an-encoding-attribute-to-xml-other-that-utf-16-with-xmlwriter
-		using MemoryStream memoryStream = new MemoryStream();
-		XmlWriterSettings settings = new XmlWriterSettings
+		using MemoryStream memoryStream = new();
+		XmlWriterSettings settings = new()
 		{
 			Encoding = Encoding.UTF8
 		};
@@ -65,14 +65,14 @@ public static class FunctionZoo105Podcast
 
 		return new ContentResult
 		{
-			Content = xmlString.ToString(),
+			Content = xmlString,
 			ContentType = "application/rss+xml"
 		};
 	}
 
 	private static async Task<RssGenerator> GetGeneratorAsync(IConfiguration config)
 	{
-		RssGenerator generator = new RssGenerator
+		RssGenerator generator = new()
 		{
 			Language = "it-IT",
 			PodcastUrl = new Uri("http://zoo105podcast.azurewebsites.net/api/Zoo105Podcast"),
@@ -89,7 +89,7 @@ public static class FunctionZoo105Podcast
 			ImageUrl = new Uri("https://is3-ssl.mzstatic.com/image/thumb/Music71/v4/9c/0c/30/9c0c3072-3d42-e609-cbc8-e822c9f910fa/source/170x170bb.jpg")
 		};
 
-		List<Episode> episodes = new List<Episode>();
+		List<Episode> episodes = new();
 		foreach (PodcastEpisode podcast in await GetPodcastsAsync(config).ConfigureAwait(false))
 		{
 			var podcastSource = podcastSources.Single(ps => ps.ShowName == podcast.ShowName);
@@ -118,19 +118,18 @@ public static class FunctionZoo105Podcast
 		DateTime currDate = DateTime.UtcNow.Date;
 		int numDaysWithoutPodcast = 0;
 
-		using HttpClient httpClient = new HttpClient();
+		using HttpClient httpClient = new();
 		httpClient.Timeout = new TimeSpan(0, 0, 5);
 
-		using CosmosHelper cosmosHelper = new CosmosHelper(config);
+		using CosmosHelper cosmosHelper = new(config);
 		CloudQueue queue = await AzureQueueHelper.GetAzureQueueAsync(config).ConfigureAwait(false);
 
-		List<PodcastEpisode> result = new List<PodcastEpisode>();
+		List<PodcastEpisode> result = new();
 
 		// We continue to search episodes in the past and we stop when any of the following cases happen:
 		// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
-		// - the number of  days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
-		while (result.Count < maxNumberEpisodesToReturn &&
-			numDaysWithoutPodcast <= maxNumberDaysWithoutPodcast)
+		// - the number of days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
+		while (result.Count < maxNumberEpisodesToReturn && numDaysWithoutPodcast <= maxNumberDaysWithoutPodcast)
 		{
 			bool foundAtLeastOnePodcast = false;
 			foreach (var podcastSource in podcastSources)
@@ -144,48 +143,33 @@ public static class FunctionZoo105Podcast
 				if (episode == null)
 				{
 					string fileName = $"{GetDayOfWeek(currDate)}_{currDate:ddMMyyyy}_{podcastSource.ShowName}.mp3";
-					//Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
-					Uri completeUri = new Uri($"https://podcast.mediaset.net/repliche//{currDate:yyyy}/{currDate.Month}/{currDate.Day}/{fileName}");
-					using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, completeUri);
-					try
+					Uri? completeUri = await SearchPodcastOnline(httpClient, fileName, currDate).ConfigureAwait(false);
+					if (completeUri != null)
 					{
-						using HttpResponseMessage response = await httpClient.SendAsync(request).ConfigureAwait(false);
-						Console.WriteLine(response.Headers.ToString());
-						if (response.IsSuccessStatusCode || ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399))
+						// Note: the order of the next two storages is important:
+						// - if I would save first in Cosmos, then in case of error when enqueuing,
+						//   on the next call of the function I would not enter her anymore (the item will be
+						//   is found in Cosmos) but the download would be lost.
+						var episode2download = new Podcast2Download
 						{
-							// Note: the order of the next two storages is important:
-							// - if I would save first in Cosmos, then in case of error when enqueuing,
-							//   on the next call of the function I would not enter her anymore (the item will be
-							//   is found in Cosmos) but the download would be lost.
-							var episode2download = new Podcast2Download
-							{
-								Id = podcastId,
-								DateUtc = currDate,
-								FileName = fileName,
-								CompleteUri = completeUri
-							};
-							await AzureQueueHelper.EnqueueItemAsync(queue, episode2download).ConfigureAwait(false);
+							Id = podcastId,
+							DateUtc = currDate,
+							FileName = fileName,
+							CompleteUri = completeUri
+						};
+						await AzureQueueHelper.EnqueueItemAsync(queue, episode2download).ConfigureAwait(false);
 
-							episode = new PodcastEpisode
-							{
-								Id = podcastId,
-								ShowName = podcastSource.ShowName,
-								DateUtc = currDate,
-								FileName = fileName,
-								CompleteUri = completeUri,
-								FileLength = null, // The real value will be fixed in DB after downloading the file
-								Duration = null    // The real value will be fixed in DB after downloading the file
-							};
-							await cosmosHelper.CreateNewEpisodeAsync(episode).ConfigureAwait(false);
-						}
-					}
-					catch (HttpRequestException)
-					{
-						// This exception can happen when the file is not available (the server returns 404 in a strange way)
-					}
-					catch (TaskCanceledException)
-					{
-						// This exception can happen when the file is not available (the server takes long time to reply)
+						episode = new PodcastEpisode
+						{
+							Id = podcastId,
+							ShowName = podcastSource.ShowName,
+							DateUtc = currDate,
+							FileName = fileName,
+							CompleteUri = completeUri,
+							FileLength = null, // The real value will be fixed in DB after downloading the file
+							Duration = null    // The real value will be fixed in DB after downloading the file
+						};
+						await cosmosHelper.CreateNewEpisodeAsync(episode).ConfigureAwait(false);
 					}
 				}
 
@@ -209,18 +193,52 @@ public static class FunctionZoo105Podcast
 		return result;
 	}
 
+	private static async Task<Uri?> SearchPodcastOnline(HttpClient httpClient, string fileName, DateTime uploadDate)
+	{
+		while (uploadDate <= DateTime.Today)
+		{
+			//Uri completeUri = new Uri($"http://www.105.net/upload/uploadedContent/repliche/zoo/{fileName}");
+			Uri completeUri = new($"https://podcast.mediaset.net/repliche//{uploadDate:yyyy}/{uploadDate.Month}/{uploadDate.Day}/{fileName}");
+			using HttpRequestMessage request = new(HttpMethod.Head, completeUri);
+			try
+			{
+				using HttpResponseMessage response = await httpClient.SendAsync(request).ConfigureAwait(false);
+				Console.WriteLine(response.Headers.ToString());
+				if (response.IsSuccessStatusCode || ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399))
+				{
+					// We have found the podcast at uploadDate, so we return the Url
+					return completeUri;
+				}
+			}
+			catch (HttpRequestException)
+			{
+				// This exception can happen when the file is not available (the server returns 404 in a strange way)
+			}
+			catch (TaskCanceledException)
+			{
+				// This exception can happen when the file is not available (the server takes long time to reply)
+			}
+
+			// Try with next day
+			uploadDate = uploadDate.AddDays(1);
+		}
+
+		// The tentative uploadDate would be in the future, so we return null
+		return null;
+	}
+
 	private static string GetDayOfWeek(DateTime date)
 	{
 		return date.DayOfWeek switch
 		{
-			DayOfWeek.Monday    => "lun",
-			DayOfWeek.Tuesday   => "mar",
-			DayOfWeek.Wednesday => "mer",
-			DayOfWeek.Thursday  => "gio",
-			DayOfWeek.Friday    => "ven",
-			DayOfWeek.Saturday  => "sab",
-			DayOfWeek.Sunday    => "dom",
-			_                   => throw new NotImplementedException($"getDayOfWeek: date=={date}"),
+			DayOfWeek.Monday	=> "lun",
+			DayOfWeek.Tuesday	=> "mar",
+			DayOfWeek.Wednesday	=> "mer",
+			DayOfWeek.Thursday	=> "gio",
+			DayOfWeek.Friday	=> "ven",
+			DayOfWeek.Saturday	=> "sab",
+			DayOfWeek.Sunday	=> "dom",
+							  _ => throw new NotImplementedException($"getDayOfWeek: date=={date}"),
 		};
 	}
 }
