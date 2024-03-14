@@ -12,12 +12,8 @@ public partial class RssGenerator
 	public string? Description { get; init; }
 	public string? AuthorName { get; init; }
 	public string? Copyright { get; init; }
-#pragma warning disable IDE1006 // Naming Styles
 	public string? iTunesCategory { get; init; }
-#pragma warning restore IDE1006 // Naming Styles
-#pragma warning disable IDE1006 // Naming Styles
 	public string? iTunesSubCategory { get; init; }
-#pragma warning restore IDE1006 // Naming Styles
 	public bool IsExplicit { get; init; }
 	public string? OwnerName { get; init; }
 	public string? OwnerEmail { get; init; }

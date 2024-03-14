@@ -9,20 +9,20 @@ namespace Zoo105Podcast.Cosmos;
 
 public class CosmosHelper : IDisposable
 {
-	private const string databaseId = "DB_Zoo105Podcast";
-	private const string containerId = "PodcastEpisodes";
+	private const string DatabaseId = "DB_Zoo105Podcast";
+	private const string ContainerId = "PodcastEpisodes";
 
-	private CosmosClient cosmosClient;
-	private Container? cosmosContainerCache;
+	private CosmosClient _cosmosClient;
+	private Container? _cosmosContainer;
 
-	public CosmosHelper(IConfiguration config)
+	public CosmosHelper(IConfiguration configuration)
 	{
-		ArgumentNullException.ThrowIfNull(config);
+		ArgumentNullException.ThrowIfNull(configuration);
 
-		string cosmosEndpointUri = config["CosmosEndpointUrl"];
-		string cosmosAuthorizationKey = config["CosmosAuthorizationKey"];
+		string cosmosEndpointUri = configuration["CosmosEndpointUrl"]!;
+		string cosmosAuthorizationKey = configuration["CosmosAuthorizationKey"]!;
 
-		this.cosmosClient = new CosmosClient(cosmosEndpointUri, cosmosAuthorizationKey, new CosmosClientOptions
+		this._cosmosClient = new CosmosClient(cosmosEndpointUri, cosmosAuthorizationKey, new CosmosClientOptions
 		{
 			Serializer = new CosmosSystemTextJsonSerializer()
 		});
@@ -39,30 +39,26 @@ public class CosmosHelper : IDisposable
 		{
 			// Dispose managed resources
 #pragma warning disable CA1031 // Do not catch general exception types
-			try { cosmosClient?.Dispose(); cosmosClient = null!; } catch { }
+			try { this._cosmosClient?.Dispose(); this._cosmosClient = null!; } catch { }
 #pragma warning restore CA1031 // Do not catch general exception types
 		}
 		// Dispose unmanaged resources
 	}
 
-	private async Task<Container> GetCosmosContainerAsync()
+	public async Task InitializeCosmosContainerAsync()
 	{
-		if (this.cosmosContainerCache == null)
-		{
-			var dbResponse = await this.cosmosClient.CreateDatabaseIfNotExistsAsync(databaseId).ConfigureAwait(false);
-			var containerResponse = await dbResponse.Database.CreateContainerIfNotExistsAsync(containerId, "/_partitionKey").ConfigureAwait(false);
-			this.cosmosContainerCache = containerResponse.Container;
-		}
-
-		return this.cosmosContainerCache;
+		var dbResponse = await this._cosmosClient.CreateDatabaseIfNotExistsAsync(DatabaseId).ConfigureAwait(false);
+		var containerResponse = await dbResponse.Database.CreateContainerIfNotExistsAsync(ContainerId, "/_partitionKey").ConfigureAwait(false);
+		this._cosmosContainer = containerResponse.Container;
 	}
 
 	public async Task<PodcastEpisode?> GetPodcastEpisodeAsync(string podcastId)
 	{
+		ArgumentNullException.ThrowIfNull(this._cosmosContainer);
+
 		try
 		{
-			var cosmosContainer = await GetCosmosContainerAsync().ConfigureAwait(false);
-			var itemResponse = await cosmosContainer.ReadItemAsync<PodcastEpisode>(podcastId, PartitionKey.None).ConfigureAwait(false);
+			var itemResponse = await this._cosmosContainer.ReadItemAsync<PodcastEpisode>(podcastId, PartitionKey.None).ConfigureAwait(false);
 			PodcastEpisode result = itemResponse.Resource;
 			return result;
 		}
@@ -72,22 +68,25 @@ public class CosmosHelper : IDisposable
 		}
 	}
 
-	public async Task CreateNewEpisodeAsync(PodcastEpisode episode)
+	public Task CreateNewEpisodeAsync(PodcastEpisode episode)
 	{
-		var cosmosContainer = await GetCosmosContainerAsync().ConfigureAwait(false);
-		_ = await cosmosContainer.CreateItemAsync(episode, PartitionKey.None).ConfigureAwait(false);
+		ArgumentNullException.ThrowIfNull(this._cosmosContainer);
+
+		return this._cosmosContainer.CreateItemAsync(episode, PartitionKey.None);
 	}
 
-	public async Task UpdateExistingEpisodeAsync(PodcastEpisode episode)
+	public Task UpdateExistingEpisodeAsync(PodcastEpisode episode)
 	{
-		var cosmosContainer = await GetCosmosContainerAsync().ConfigureAwait(false);
-		_ = await cosmosContainer.UpsertItemAsync(episode, PartitionKey.None).ConfigureAwait(false);
+		ArgumentNullException.ThrowIfNull(this._cosmosContainer);
+
+		return this._cosmosContainer.UpsertItemAsync(episode, PartitionKey.None);
 	}
 
 	public async IAsyncEnumerable<PodcastEpisode> GetEpisodesToFix()
 	{
-		var cosmosContainer = await GetCosmosContainerAsync().ConfigureAwait(false);
-		using var iterator = cosmosContainer.GetItemQueryIterator<PodcastEpisode>("SELECT * FROM PodcastEpisodes c WHERE IS_NULL(c.FileLength)");
+		ArgumentNullException.ThrowIfNull(this._cosmosContainer);
+
+		using var iterator = this._cosmosContainer.GetItemQueryIterator<PodcastEpisode>("SELECT * FROM PodcastEpisodes c WHERE IS_NULL(c.FileLength)");
 
 		while (iterator.HasMoreResults)
 		{

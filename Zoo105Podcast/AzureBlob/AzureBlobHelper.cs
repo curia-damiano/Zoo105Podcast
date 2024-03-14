@@ -1,73 +1,80 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace Zoo105Podcast.AzureBlob;
 
-public static class AzureBlobHelper
+public class AzureBlobHelper(
+	BlobServiceClient blobServiceClient)
 {
-	private const string blobContainerName = "zoo105podcast";
+	private const string BlobContainerName = "zoo105podcast";
+	private BlobContainerClient? _blobContainerClient;
 
-	public static CloudBlobContainer GetBlobContainer(IConfiguration config)
+	public async Task InitializeBlobContainerClientAsync()
 	{
-		ArgumentNullException.ThrowIfNull(config);
-
-		CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["AzureWebJobsStorage"]);
-		CloudBlobClient cloudBlobClient = storageAccount.CreateCloudBlobClient();
-		CloudBlobContainer cloudBlobContainer = cloudBlobClient.GetContainerReference(blobContainerName);
-		return cloudBlobContainer;
+		this._blobContainerClient = blobServiceClient.GetBlobContainerClient(BlobContainerName);
+		if (!await this._blobContainerClient.ExistsAsync().ConfigureAwait(false))
+		{
+			this._blobContainerClient = await blobServiceClient.CreateBlobContainerAsync(BlobContainerName).ConfigureAwait(false);
+		}
 	}
 
-	public static async Task<bool> CheckIfFileIsAlreadyStoredAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName)
+	public async Task<bool> CheckIfFileIsAlreadyStoredAsync(DateTime dateUtc, string fileName)
 	{
-		ArgumentNullException.ThrowIfNull(cloudBlobContainer);
+		ArgumentNullException.ThrowIfNull(this._blobContainerClient);
 
 		// Check the existence of the container
-		if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false))
+		if (!await this._blobContainerClient.ExistsAsync().ConfigureAwait(false))
 		{
 			return false;
 		}
 
 		// Check the existence of the file
 		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
-		CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-		return await cloudBlockBlob.ExistsAsync().ConfigureAwait(false);
-	}
-
-	public static async Task<long> StoreFileAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName, Stream stream)
-	{
-		ArgumentNullException.ThrowIfNull(cloudBlobContainer);
-		ArgumentNullException.ThrowIfNull(stream);
-
-		// If the container doesn't exist, create it
-		if (!await cloudBlobContainer.ExistsAsync().ConfigureAwait(false))
-#pragma warning disable CA1031 // Do not catch general exception types
-			try { await cloudBlobContainer.CreateAsync().ConfigureAwait(false); } catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
-
-		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
-		CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-		await cloudBlockBlob.UploadFromStreamAsync(stream).ConfigureAwait(false);
-
-		return stream.Position;
-	}
-
-	internal static async Task<long> GetBlobSizeAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName)
-	{
-		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
-		CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-		await cloudBlockBlob.FetchAttributesAsync().ConfigureAwait(false);
-		long result = cloudBlockBlob.Properties.Length;
+		BlobClient blobClient = this._blobContainerClient.GetBlobClient(pathFileName);
+		bool result = await blobClient.ExistsAsync().ConfigureAwait(false);
 		return result;
 	}
 
-	internal static Task GetBlobContentAsync(CloudBlobContainer cloudBlobContainer, DateTime dateUtc, string fileName, Stream target)
+	public async Task<long> StoreFileAsync(DateTime dateUtc, string fileName, Stream stream)
 	{
+		ArgumentNullException.ThrowIfNull(this._blobContainerClient);
+		ArgumentNullException.ThrowIfNull(stream);
+
+		// If the container doesn't exist, create it
+		if (!await this._blobContainerClient.ExistsAsync().ConfigureAwait(false))
+		{
+#pragma warning disable CA1031 // Do not catch general exception types
+			try { await this._blobContainerClient.CreateAsync().ConfigureAwait(false); } catch { }
+#pragma warning restore CA1031 // Do not catch general exception types
+		}
+
 		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
-		CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(pathFileName);
-		return cloudBlockBlob.DownloadToStreamAsync(target);
+		BlobClient blobClient = this._blobContainerClient.GetBlobClient(pathFileName);
+		await blobClient.UploadAsync(stream).ConfigureAwait(false);
+		long result = stream.Position;
+		return result;
+	}
+
+	internal async Task<long> GetBlobSizeAsync(DateTime dateUtc, string fileName)
+	{
+		ArgumentNullException.ThrowIfNull(this._blobContainerClient);
+
+		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
+		BlobClient blobClient = this._blobContainerClient.GetBlobClient(pathFileName);
+		BlobProperties blobProperties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
+		long result = blobProperties.ContentLength;
+		return result;
+	}
+
+	internal Task GetBlobContentAsync(DateTime dateUtc, string fileName, Stream target)
+	{
+		ArgumentNullException.ThrowIfNull(this._blobContainerClient);
+
+		string pathFileName = $"{dateUtc:yyyy/MM}/{fileName}";
+		BlobClient blobClient = this._blobContainerClient.GetBlobClient(pathFileName);
+		return blobClient.DownloadToAsync(target);
 	}
 }

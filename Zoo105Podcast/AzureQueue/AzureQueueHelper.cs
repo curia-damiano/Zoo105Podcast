@@ -1,39 +1,35 @@
 ﻿using System;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Queue;
+using Azure.Storage.Queues;
 
 namespace Zoo105Podcast.AzureQueue;
 
-public static class AzureQueueHelper
+public class AzureQueueHelper(
+	QueueServiceClient queueServiceClient)
 {
-	private const string queueName = "podcast2download";
+	private const string QueueName = "podcast2download";
+	private QueueClient? _queueClient;
 
-	public static async Task<CloudQueue> GetAzureQueueAsync(IConfiguration config)
+	public Task InitializeQueueClientAsync()
 	{
-		ArgumentNullException.ThrowIfNull(config);
-
-		CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["AzureWebJobsStorage"]);
-		CloudQueueClient queueClient = storageAccount.CreateCloudQueueClient();
-		CloudQueue queue = queueClient.GetQueueReference(queueName);
-		_ = await queue.CreateIfNotExistsAsync().ConfigureAwait(false);
-		return queue;
+		this._queueClient = queueServiceClient.GetQueueClient(QueueName);
+		return this._queueClient.CreateIfNotExistsAsync();
 	}
 
-	public static Task EnqueueItemAsync(CloudQueue queue, Podcast2Download episode)
+	public Task EnqueueItemAsync(Podcast2Download episode)
 	{
-		ArgumentNullException.ThrowIfNull(queue);
+		ArgumentNullException.ThrowIfNull(this._queueClient);
 
 		string serializedObj = JsonSerializer.Serialize(episode);
-		CloudQueueMessage message = new(serializedObj);
-		return queue.AddMessageAsync(message);
+		var bytes = Encoding.UTF8.GetBytes(serializedObj);
+		return this._queueClient.SendMessageAsync(Convert.ToBase64String(bytes));
 	}
 
 	public static Podcast2Download DeserializeItem(string serialized)
 	{
-		if (string.IsNullOrEmpty(serialized)) throw new ArgumentNullException(nameof(serialized));
+		ArgumentNullException.ThrowIfNull(serialized);
 
 		Podcast2Download result = JsonSerializer.Deserialize<Podcast2Download>(serialized)!;
 		return result;

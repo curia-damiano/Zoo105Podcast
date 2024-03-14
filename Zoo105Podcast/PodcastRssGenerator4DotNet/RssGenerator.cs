@@ -15,17 +15,19 @@ public partial class RssGenerator
 
 		const string itunesUri = "http://www.itunes.com/dtds/podcast-1.0.dtd";
 		const string atomUri = "http://www.w3.org/2005/Atom";
-		const string googleplayUri = "http://www.google.com/schemas/play-podcasts/1.0";
+		const string googlePlayUri = "http://www.google.com/schemas/play-podcasts/1.0";
+		const string modulesContent = "http://purl.org/rss/1.0/modules/content/";
 
 		// Start document
 		writer.WriteStartDocument();
 
-		// Start rss
+		// Start rss - according to https://podcasters.apple.com/support/823-podcast-requirements
 		writer.WriteStartElement("rss");
 		writer.WriteAttributeString("xmlns", "itunes", null, itunesUri);
-		writer.WriteAttributeString("xmlns", "googleplay", null, googleplayUri);
+		writer.WriteAttributeString("xmlns", "googleplay", null, googlePlayUri);
 		writer.WriteAttributeString("xmlns", "atom", null, atomUri);
 		writer.WriteAttributeString("version", "2.0");
+		writer.WriteAttributeString("xmlns", "content", null, modulesContent);
 		writer.WriteAttributeString("xml", "lang", null, this.Language);
 
 		// Start channel

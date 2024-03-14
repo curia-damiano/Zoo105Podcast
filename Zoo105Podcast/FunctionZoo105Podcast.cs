@@ -2,47 +2,39 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Text;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.WindowsAzure.Storage.Queue;
 using Zoo105Podcast.AzureQueue;
 using Zoo105Podcast.Cosmos;
 using Zoo105Podcast.PodcastRssGenerator4DotNet;
 
 namespace Zoo105Podcast;
 
-public static class FunctionZoo105Podcast
+public class FunctionZoo105Podcast(
+	IHost host,
+	ILogger<FunctionZoo105Podcast> logger,
+	IConfiguration configuration)
 {
-	private static readonly (int PodcastSourceId, string ShowName, string TitleFormat, string DescriptionFormat, Uri ImageUrl)[] podcastSources = {
-		(0, "zoo",         "Lo Zoo di 105 del {0}", "Puntata completa dello Zoo di 105 del {0}", new Uri("https://w7.pngwing.com/pngs/665/126/png-transparent-italy-radio-105-network-radio-deejay-radiofonia-comedian-zoo-playful-purple-violet-magenta.png")),
-		(1, "105polaroyd", "105 Polaroyd del {0}",  "Puntata completa di 105 Polaroyd del {0}",  new Uri("https://zoo.105.net/resizer/-1/-1/true/1540546271185.png--.png?1540546271000"))
+	private static readonly (int PodcastSourceId, string ShowName, string TitleFormat, string DescriptionFormat, Uri ImageUrl)[] PodcastSources = {
+		// old photo: https://w7.pngwing.com/pngs/665/126/png-transparent-italy-radio-105-network-radio-deejay-radiofonia-comedian-zoo-playful-purple-violet-magenta.png
+		(0, "zoo",         "Lo Zoo di 105 del {0}", "Puntata completa dello Zoo di 105 del {0}", new Uri("https://www.105.net/upload/MicrosoftTeams-image_(4)-1683355472122.jpg")),
+		//(1, "105polaroyd", "105 Polaroyd del {0}",  "Puntata completa di 105 Polaroyd del {0}",  new Uri("https://zoo.105.net/resizer/-1/-1/true/1540546271185.png--.png?1540546271000"))
 	};
 
-	[FunctionName("Zoo105Podcast")]
-	public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]
-#pragma warning disable CA1801 // Review unused parameters
-	HttpRequest req,
-#pragma warning restore CA1801 // Review unused parameters
-		ILogger logger, Microsoft.Azure.WebJobs.ExecutionContext context)
+	[Function("Zoo105Podcast")]
+	public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
 	{
 		logger.LogInformation("C# HTTP trigger function processed a request.");
-
-		ArgumentNullException.ThrowIfNull(context);
-
-		var config = new ConfigurationBuilder()
-			.SetBasePath(context.FunctionAppDirectory)
-			.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
-			.AddEnvironmentVariables()
-			.Build();
 
 		// Change to a culture that has the correct date and time separators
 		Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
@@ -57,20 +49,18 @@ public static class FunctionZoo105Podcast
 
 		using (XmlWriter writer = XmlWriter.Create(memoryStream, settings))
 		{
-			RssGenerator generator = await GetGeneratorAsync(config).ConfigureAwait(false);
+			RssGenerator generator = await GetGeneratorAsync().ConfigureAwait(false);
 			generator.Generate(writer);
 		}
-
 		string xmlString = settings.Encoding.GetString(memoryStream.ToArray());
 
-		return new ContentResult
-		{
-			Content = xmlString,
-			ContentType = "application/rss+xml"
-		};
+		var response = req.CreateResponse(HttpStatusCode.OK);
+		response.Headers.Add("Content-Type", "application/rss+xml; charset=utf-8");
+		await response.WriteStringAsync(xmlString, Encoding.UTF8).ConfigureAwait(false);
+		return response;
 	}
 
-	private static async Task<RssGenerator> GetGeneratorAsync(IConfiguration config)
+	private async Task<RssGenerator> GetGeneratorAsync()
 	{
 		RssGenerator generator = new()
 		{
@@ -89,10 +79,10 @@ public static class FunctionZoo105Podcast
 			ImageUrl = new Uri("https://is3-ssl.mzstatic.com/image/thumb/Music71/v4/9c/0c/30/9c0c3072-3d42-e609-cbc8-e822c9f910fa/source/170x170bb.jpg")
 		};
 
-		List<Episode> episodes = new();
-		foreach (PodcastEpisode podcast in await GetPodcastsAsync(config).ConfigureAwait(false))
+		List<Episode> episodes = [];
+		foreach (PodcastEpisode podcast in await GetPodcastsAsync().ConfigureAwait(false))
 		{
-			var podcastSource = podcastSources.Single(ps => ps.ShowName == podcast.ShowName);
+			var podcastSource = PodcastSources.Single(ps => ps.ShowName == podcast.ShowName);
 
 			episodes.Add(new Episode()
 			{
@@ -111,28 +101,31 @@ public static class FunctionZoo105Podcast
 	}
 
 	private const string yyyyMMdd = "yyyyMMdd";
-	private static async Task<List<PodcastEpisode>> GetPodcastsAsync(IConfiguration config)
+	private async Task<List<PodcastEpisode>> GetPodcastsAsync()
 	{
-		int maxNumberEpisodesToReturn = int.Parse(config["MaxNumberEpisodesToReturn"]);
-		int maxNumberDaysWithoutPodcast = int.Parse(config["MaxNumberDaysWithoutPodcast"]);
+		int maxNumberEpisodesToReturn = int.Parse(configuration["MaxNumberEpisodesToReturn"]!);
+		int maxNumberDaysWithoutPodcast = int.Parse(configuration["MaxNumberDaysWithoutPodcast"]!);
 		DateTime currDate = DateTime.UtcNow.Date;
 		int numDaysWithoutPodcast = 0;
 
 		using HttpClient httpClient = new();
 		httpClient.Timeout = new TimeSpan(0, 0, 5);
 
-		using CosmosHelper cosmosHelper = new(config);
-		CloudQueue queue = await AzureQueueHelper.GetAzureQueueAsync(config).ConfigureAwait(false);
+		using CosmosHelper cosmosHelper = new(configuration);
+		await cosmosHelper.InitializeCosmosContainerAsync().ConfigureAwait(false);
 
-		List<PodcastEpisode> result = new();
+		AzureQueueHelper azureQueueHelper = host.Services.GetService<AzureQueueHelper>()!;
+		await azureQueueHelper.InitializeQueueClientAsync().ConfigureAwait(false);
 
-		// We continue to search episodes in the past and we stop when any of the following cases happen:
+		List<PodcastEpisode> result = [];
+
+		// We continue to search episodes in the past, and we stop when any of the following cases happen:
 		// - our list of episodes to return is long enough (==maxNumberEpisodesToReturn)
 		// - the number of days since the last returned episode is too big (>maxNumberDaysWithoutPodcast)
 		while (result.Count < maxNumberEpisodesToReturn && numDaysWithoutPodcast <= maxNumberDaysWithoutPodcast)
 		{
 			bool foundAtLeastOnePodcast = false;
-			foreach (var podcastSource in podcastSources)
+			foreach (var podcastSource in PodcastSources)
 			{
 				string podcastId = $"{podcastSource.ShowName}_{currDate.ToString(yyyyMMdd)}";
 
@@ -157,7 +150,7 @@ public static class FunctionZoo105Podcast
 							FileName = fileName,
 							CompleteUri = completeUri
 						};
-						await AzureQueueHelper.EnqueueItemAsync(queue, episode2download).ConfigureAwait(false);
+						await azureQueueHelper.EnqueueItemAsync(episode2download).ConfigureAwait(false);
 
 						episode = new PodcastEpisode
 						{
@@ -238,7 +231,7 @@ public static class FunctionZoo105Podcast
 			DayOfWeek.Friday	=> "ven",
 			DayOfWeek.Saturday	=> "sab",
 			DayOfWeek.Sunday	=> "dom",
-							  _ => throw new NotImplementedException($"getDayOfWeek: date=={date}"),
+			_					=> throw new NotImplementedException($"getDayOfWeek: date=={date}"),
 		};
 	}
 }

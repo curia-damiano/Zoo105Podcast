@@ -3,10 +3,11 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.WindowsAzure.Storage.Blob;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
 using Zoo105Podcast.AzureBlob;
@@ -15,23 +16,18 @@ using Zoo105Podcast.Cosmos;
 
 namespace Zoo105Podcast;
 
-public static class FunctionDownload2Blob
+public class FunctionDownload2Blob(
+	IHost host,
+	ILogger<FunctionZoo105Podcast> logger,
+	IConfiguration configuration)
 {
-	[FunctionName("Download2Blob")]
+	[Function("Download2Blob")]
 #pragma warning disable CA1506 // Avoid excessive class coupling
-	public static async Task Run([QueueTrigger("podcast2download", Connection = "AzureWebJobsStorage")]
+	public async Task Run([QueueTrigger("podcast2download", Connection = "AzureWebJobsStorage")]
 #pragma warning restore CA1506 // Avoid excessive class coupling
-	string myQueueItem, ILogger logger, Microsoft.Azure.WebJobs.ExecutionContext context)
+		string myQueueItem)
 	{
-		logger.LogInformation($"C# Queue trigger function processed: {myQueueItem}");
-
-		ArgumentNullException.ThrowIfNull(context);
-
-		var config = new ConfigurationBuilder()
-			.SetBasePath(context.FunctionAppDirectory)
-			.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
-			.AddEnvironmentVariables()
-			.Build();
+		logger.LogInformation("C# Queue trigger function processed: {MyQueueItem}", myQueueItem);
 
 		// Change to a culture that has the correct date and time separators
 		Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("it-IT");
@@ -42,8 +38,10 @@ public static class FunctionDownload2Blob
 		TimeSpan duration;
 		using (MemoryStream memoryStream = new())
 		{
-			CloudBlobContainer cloudBlobContainer = AzureBlobHelper.GetBlobContainer(config);
-			if (!await AzureBlobHelper.CheckIfFileIsAlreadyStoredAsync(cloudBlobContainer, episode2download.DateUtc, episode2download.FileName).ConfigureAwait(false))
+			AzureBlobHelper azureBlobHelper = host.Services.GetService<AzureBlobHelper>()!;
+			await azureBlobHelper.InitializeBlobContainerClientAsync().ConfigureAwait(false);
+
+			if (!await azureBlobHelper.CheckIfFileIsAlreadyStoredAsync(episode2download.DateUtc, episode2download.FileName).ConfigureAwait(false))
 			{
 				using HttpClient httpClient = new();
 
@@ -64,29 +62,36 @@ public static class FunctionDownload2Blob
 				using (HttpResponseMessage httpResponse = await httpClient.GetAsync(afterRedirectUri).ConfigureAwait(false))
 				{
 					// Download the file
-					using Stream stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+					Stream stream = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+					await using (stream.ConfigureAwait(false))
+					{
+						await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
+						_ = memoryStream.Seek(0, SeekOrigin.Begin);
 
-					await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-					_ = memoryStream.Seek(0, SeekOrigin.Begin);
-
-					// Save the file to the blob
-					fileSize = await AzureBlobHelper.StoreFileAsync(cloudBlobContainer, episode2download.DateUtc, episode2download.FileName, memoryStream).ConfigureAwait(false);
+						// Save the file to the blob
+						fileSize = await azureBlobHelper.StoreFileAsync(episode2download.DateUtc, episode2download.FileName, memoryStream).ConfigureAwait(false);
+					}
 				}
 			}
 			else
 			{
 				// Get the file size of the blob
-				fileSize = await AzureBlobHelper.GetBlobSizeAsync(cloudBlobContainer, episode2download.DateUtc, episode2download.FileName).ConfigureAwait(false);
-				await AzureBlobHelper.GetBlobContentAsync(cloudBlobContainer, episode2download.DateUtc, episode2download.FileName, memoryStream).ConfigureAwait(false);
+				fileSize = await azureBlobHelper.GetBlobSizeAsync(episode2download.DateUtc, episode2download.FileName).ConfigureAwait(false);
+				await azureBlobHelper.GetBlobContentAsync(episode2download.DateUtc, episode2download.FileName, memoryStream).ConfigureAwait(false);
 			}
 
 			_ = memoryStream.Seek(0, SeekOrigin.Begin);
-			using Mp3FileReaderBase mp3Reader = new(memoryStream, waveFormat => new Mp3FrameDecompressor(waveFormat));
-			duration = mp3Reader.TotalTime;
+			Mp3FileReaderBase mp3Reader = new(memoryStream, waveFormat => new Mp3FrameDecompressor(waveFormat));
+			await using (mp3Reader.ConfigureAwait(false))
+			{
+				duration = mp3Reader.TotalTime;
+			}
 		}
 
 		// After downloading the file, check the file size and the duration in Cosmos, and if wrong, update it
-		using CosmosHelper cosmosHelper = new(config);
+		using CosmosHelper cosmosHelper = new(configuration);
+		await cosmosHelper.InitializeCosmosContainerAsync().ConfigureAwait(false);
+
 		PodcastEpisode? episode = await cosmosHelper.GetPodcastEpisodeAsync(episode2download.Id).ConfigureAwait(false);
 		if (episode == null)
 			throw new MyApplicationException($"Episode '{episode2download.Id}' not found in storage.");
